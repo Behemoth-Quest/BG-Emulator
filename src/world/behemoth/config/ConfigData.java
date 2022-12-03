@@ -14,6 +14,8 @@ import java.util.Properties;
 import java.util.Set;
 
 public class ConfigData {
+
+   public static String DB_CONNECTION;
    public static String DB_HOST;
    public static String DB_NAME;
    public static String DB_USERNAME;
@@ -107,12 +109,14 @@ public class ConfigData {
 
          }
 
+         DB_CONNECTION = config.getProperty("database.connection");
          DB_HOST = config.getProperty("database.host");
          DB_USERNAME = config.getProperty("database.user");
          DB_PASSWORD = config.getProperty("database.pass");
          DB_NAME = config.getProperty("database.name");
          DB_PORT = Integer.parseInt(config.getProperty("database.port"));
          DB_MAX_CONNECTIONS = Integer.parseInt(config.getProperty("database.connections.max"));
+
          SERVER_NAME = config.getProperty("server.name");
          STAFF_ONLY = Boolean.parseBoolean(config.getProperty("server.staffonly"));
          ANTI_MESSAGEFLOOD_MIN_MSG_TIME = Long.parseLong(config.getProperty("antiflood.message.minimumtime"));

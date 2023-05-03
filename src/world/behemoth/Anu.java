@@ -29,8 +29,9 @@ import java.util.logging.Handler;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
 
-public class Anu extends AbstractExtension {
-   private final List<String> allowedRequestsForBannedUsers = Arrays.asList(new String[]{"mv", "firstJoin", "afk", "isModerator", "retrieveInventory", "moveToCell", "retrieveUserData", "retrieveUserDatas", "emotea"});
+public class Anu extends AbstractExtension
+{
+   private final List<String> allowedRequestsForBannedUsers = Arrays.asList("mv", "firstJoin", "afk", "isModerator", "retrieveInventory", "moveToCell", "retrieveUserData", "retrieveUserDatas", "emotea");
    private final Map<String, String> requests = new HashMap();
    private ExtensionHelper helper;
    private Console console;
@@ -50,7 +51,7 @@ public class Anu extends AbstractExtension {
       }
       
       this.console = new Console();
-      new Interface().setVisible(true);
+//      new Interface().setVisible(true);
    }
 
    public void init() {

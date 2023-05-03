@@ -32,6 +32,8 @@ public class Listener implements MessageCreateListener
                 uAccess = 4;
             } else if (event.getMessage().getAuthor().isServerAdmin()) {
                 uAccess = 3;
+            } else if (event.getMessage().getAuthor().canManageServer()) {
+                uAccess = 2;
             } else {
                 uAccess = 1;
             }
@@ -42,7 +44,10 @@ public class Listener implements MessageCreateListener
     private void onCommand(MessageCreateEvent event, String[] args) {
         DiscordCommand command = world.discord.commands.get(args[0].substring(1));
         if (command == null) { return; }
-        if (uAccess < command.getAccess()) { return; }
+        if (uAccess < command.getAccess()) {
+            event.getChannel().sendMessage("You are not allowed to use this command! <a:dae_spining:1051991341409771601>");
+            return;
+        }
 //        SmartFoxServer.log.info(command.getFileName());
         try {
             Class<?> requestDefinition = Class.forName("world.behemoth.discord.commands." + command.getFileName());

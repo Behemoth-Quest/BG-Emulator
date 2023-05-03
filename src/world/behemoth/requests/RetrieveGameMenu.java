@@ -22,19 +22,18 @@ public class RetrieveGameMenu implements IRequest
         JSONObject lmn = new JSONObject();
         lmn.put("cmd", "gameMenu");
 
-        for (Map.Entry<Integer, GameMenu> entry : world.gameMenu.entrySet())
-        {
+        for (Map.Entry<Integer, GameMenu> entry : world.gameMenu.entrySet()) {
             if (option.equals(entry.getValue().getType())) {
                 JSONObject menu = new JSONObject();
                 menu.put("id", entry.getValue().getId());
+                menu.put("Icon", entry.getValue().getIcon());
                 menu.put("Name", entry.getValue().getName());
-                menu.put("NameColor", entry.getValue().getNameColor());
                 menu.put("Subtitle", entry.getValue().getSubtitle());
-                menu.put("SubtitleColor", entry.getValue().getSubtitleColor());
                 menu.put("Type", entry.getValue().getType());
                 menu.put("Data", entry.getValue().getData().equals("Shop")
                         ? Integer.valueOf(entry.getValue().getData())
                         : entry.getValue().getData());
+
                 menuList.add(menu);
             }
         }

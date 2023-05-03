@@ -1,15 +1,13 @@
 package world.behemoth.discord;
 
-import org.javacord.api.entity.activity.ActivityType;
-import world.behemoth.config.ConfigData;
-import world.behemoth.db.objects.DiscordCommand;
-import world.behemoth.discord.events.ReloadSettings;
-import world.behemoth.discord.utils.Listener;
-import world.behemoth.world.World;
 import it.gotoandplay.smartfoxserver.SmartFoxServer;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.util.logging.FallbackLoggerConfiguration;
+import world.behemoth.db.objects.DiscordCommand;
+import world.behemoth.discord.events.ReloadSettings;
+import world.behemoth.discord.utils.Listener;
+import world.behemoth.world.World;
 
 import java.util.HashMap;
 

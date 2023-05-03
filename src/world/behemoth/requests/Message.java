@@ -1,6 +1,9 @@
 package world.behemoth.requests;
 
 import world.behemoth.Interface;
+import world.behemoth.config.ConfigData;
+import world.behemoth.db.objects.Area;
+import world.behemoth.discord.utils.Webhook;
 import world.behemoth.dispatcher.IRequest;
 import world.behemoth.dispatcher.RequestException;
 import world.behemoth.world.PartyInfo;
@@ -8,6 +11,8 @@ import world.behemoth.world.World;
 import it.gotoandplay.smartfoxserver.SmartFoxServer;
 import it.gotoandplay.smartfoxserver.data.Room;
 import it.gotoandplay.smartfoxserver.data.User;
+
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,37 +21,28 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
 
-public class Message implements IRequest {
-   public Message() {
-      super();
-   }
-
-   public void process(String[] params, User user, World world, Room room) throws RequestException {
-      if(((Integer)user.properties.get("permamute")).intValue() > 0) {
+public class Message implements IRequest
+{
+   @Override
+   public void process(String[] params, User user, World world, Room room) throws RequestException
+   {
+      if ((Integer) user.properties.get("permamute") > 0) {
          throw new RequestException("You are muted! Chat privileges have been permanently revoked.");
       } else if(world.users.isMute(user)) {
          int var22 = world.users.getMuteTimeInSeconds(user);
-         if(user.properties.get("language").equals("BR")) {
-            throw new RequestException(world.users.getMuteMessageBR((double)var22));
-         } else {
-            throw new RequestException(world.users.getMuteMessage((double)var22));
-         }
+         throw new RequestException(world.users.getMuteMessage((double) var22));
       } else {
          String channel = params[1];
          String message = params[0];
          Iterator pattern = world.chatFilters.keySet().iterator();
-
          int members;
-         while(pattern.hasNext()) {
+
+         while (pattern.hasNext()) {
             String parts = (String)pattern.next();
             String access = message.toLowerCase().replaceAll(" ", "").replaceAll("@", "a").replaceAll("v", "u");
-            if(access.contains(parts)) {
+            if (access.contains(parts)) {
                world.users.mute(user, ((Integer)world.chatFilters.get(parts)).intValue(), 13);
                members = world.users.getMuteTimeInSeconds(user);
-               if(user.properties.get("language").equals("BR")) {
-                  throw new RequestException(world.users.getMuteMessageBR((double)members));
-               }
-
                throw new RequestException(world.users.getMuteMessage((double)members));
             }
          }
@@ -56,45 +52,33 @@ public class Message implements IRequest {
          String[] var25 = var24;
          members = var24.length;
 
-         for(int it = 0; it < members; ++it) {
+         for (int it = 0; it < members; ++it) {
             String member = var25[it];
             Matcher client = var23.matcher(member.toLowerCase());
-            if(client.matches()) {
+            if (client.matches()) {
                byte muteTimeInMinutes = 5;
                world.users.mute(user, muteTimeInMinutes, 12);
                int seconds = world.users.getMuteTimeInSeconds(user);
                String kek = null;
-               if(user.properties.get("language").equals("BR")) {
-                  kek = world.users.getMuteMessageBR((double)seconds);
-               } else {
-                  kek = world.users.getMuteMessage((double)seconds);
-               }
-
+               kek = world.users.getMuteMessage((double)seconds);
                world.send(new String[]{"warning", kek}, user);
-               if(user.properties.get("language").equals("BR")) {
-                  throw new RequestException("Por favor, abster-se de publicar esse tipo de mensagem.", "warning");
-               }
 
                throw new RequestException("Please refrain from posting this kind of message.", "warning");
             }
          }
 
-         if(message.length() > 150) {
+         if (message.length() > 150) {
             message = message.substring(0, 150);
          }
 
          message = StringUtils.replaceEach(message, new String[]{"#038:", "&", "\"", "<", ">"}, new String[]{"&", "&amp;", "&quot;", "&lt;", "&gt;"});
          int var26;
-         if(channel.equals("world")) {
+         if (channel.equals("world")) {
             world.db.jdbc.beginTransaction();
-
             try {
                var26 = world.db.jdbc.queryForInt("SELECT Coins FROM users WHERE id = ? FOR UPDATE", new Object[]{user.properties.get("dbId")});
-               if(var26 < 100) {
+               if (var26 < 100) {
                   world.db.jdbc.rollbackTransaction();
-                  if(user.properties.get("language").equals("BR")) {
-                     throw new RequestException("Voce precisa de pelo menos 100ACs para enviar uma mensagem ao canal mundo.", "server");
-                  }
 
                   throw new RequestException("You need at least 100ACs to send a message to world channel.", "server");
                }
@@ -162,21 +146,42 @@ public class Message implements IRequest {
          } else {
             var26 = ((Integer)user.properties.get("access")).intValue();
             switch(var26) {
-            case 40:
-               channel = "moderator";
-               break;
-            case 60:
-               channel = "admin";
-               break;
-            default:
-               channel = "zone";
+               case 40:
+   //               channel = "moderator";
+   //               break;
+               case 60:
+   //               channel = "admin";
+   //               break;
+               default:
+                  channel = "zone";
             }
 
             world.sendToRoom(new String[]{"chatm", channel + "~" + message, user.getName(), String.valueOf(room.getId())}, user, room);
          }
-         Interface.jTextArea2.append("message:"+user.getName()+":"+message);
+
+         SmartFoxServer.log.info("user.getName(): " + user.getName());
+         SmartFoxServer.log.info("message: " + message);
+
+         Interface.jTextArea2.append("message:" + user.getName() + ":" + message);
 
          world.applyFloodFilter(user, message);
+
+         String UpperRoom = room.getName().substring(0, 1).toUpperCase() + room.getName().substring(1);
+         String UpperName = user.getName().substring(0, 1).toUpperCase() + user.getName().substring(1);
+         Area area = (world.areas.get(room.getName().split("-")[0]));
+
+         try {
+            switch (channel) {
+               default:
+                  Webhook webhook = new Webhook(ConfigData.DISCORD_ZONE_WEBHOOK);
+                  webhook.setUsername(UpperRoom);
+                  webhook.setContent("**" + UpperName + ":** " + message);
+                  webhook.setTts(false);
+                  webhook.execute();
+            }
+         } catch (IOException e) {
+            SmartFoxServer.log.severe("unable to send Webhook: " + e);
+         }
       }
    }
 }

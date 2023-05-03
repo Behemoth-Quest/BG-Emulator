@@ -64,7 +64,9 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       properties.put("access", Integer.valueOf(rs.getInt("Access")));
       properties.put("permamute", Integer.valueOf(rs.getInt("PermamuteFlag")));
       properties.put("gender", rs.getString("Gender"));
-      properties.put("colorhair", Integer.valueOf(rs.getString("ColorHair"), 16));
+        properties.put(Users.COLOR_CHAT, rs.getString("ColorChat"));
+
+        properties.put("colorhair", Integer.valueOf(rs.getString("ColorHair"), 16));
       properties.put("colorskin", Integer.valueOf(rs.getString("ColorSkin"), 16));
       properties.put("coloreye", Integer.valueOf(rs.getString("ColorEye"), 16));
       properties.put("colorbase", Integer.valueOf(rs.getString("ColorBase"), 16));
@@ -127,7 +129,9 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
    public static final String CLASS_NAME = "classname";
    public static final String CLASS_POINTS = "cp";
    public static final String CLASS_CATEGORY = "classcat";
-   public static final String COLOR_ACCESSORY = "coloraccessory";
+
+    public static final String COLOR_CHAT = "colorchat";
+    public static final String COLOR_ACCESSORY = "coloraccessory";
    public static final String COLOR_BASE = "colorbase";
    public static final String COLOR_EYE = "coloreye";
    public static final String COLOR_HAIR = "colorhair";
@@ -403,7 +407,7 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       int calcExp = xpBoost?exp * (1 + this.world.EXP_RATE):exp * this.world.EXP_RATE;
       int calcGold = goldBoost?gold * (1 + this.world.GOLD_RATE):gold * this.world.GOLD_RATE;
        int calcCoin = (coins * this.world.COIN_RATE);
-       int calcRep = repBoost?rep * (1 + this.world.REP_RATE):rep * this.world.REP_RATE;
+       int calcRep = repBoost ? rep * (1 + this.world.REP_RATE) : rep * this.world.REP_RATE;
       int calcCp = cpBoost?cp * (1 + this.world.CP_RATE):cp * this.world.CP_RATE;
 
 //       Iterator iterator = ((JSONObject) user.properties.get(Users.EQUIPMENT)).values().iterator();
@@ -461,19 +465,17 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
 
       int userXp;
       if (factionId > 1) {
-         int je = calcRep >= 302500?302500:calcRep;
+         int je = calcRep >= 302500 ? 302500 : calcRep;
          addGoldExp.put("FactionID", Integer.valueOf(factionId));
          addGoldExp.put("iRep", Integer.valueOf(calcRep));
-         if(repBoost) {
+         if (repBoost) {
             addGoldExp.put("bonusRep", Integer.valueOf(calcRep / 2));
          }
-
-         if(factions.containsKey(Integer.valueOf(factionId))) {
+         if (factions.containsKey(Integer.valueOf(factionId))) {
             this.world.db.jdbc.run("UPDATE users_factions SET Reputation = (Reputation + ?) WHERE UserID = ? AND FactionID = ?", new Object[]{Integer.valueOf(je), user.properties.get("dbId"), Integer.valueOf(factionId)});
             factions.put(Integer.valueOf(factionId), Integer.valueOf(((Integer)factions.get(Integer.valueOf(factionId))).intValue() + je));
          }
-
-         if(factions.containsKey(Integer.valueOf(factionId))) {
+         if (factions.containsKey(Integer.valueOf(factionId))) {
             this.world.db.jdbc.run("UPDATE users_factions SET Reputation = (Reputation + ?) WHERE UserID = ? AND FactionID = ?", new Object[]{Integer.valueOf(je), user.properties.get("dbId"), Integer.valueOf(factionId)});
             factions.put(Integer.valueOf(factionId), Integer.valueOf(((Integer)factions.get(Integer.valueOf(factionId))).intValue() + je));
          } else {
@@ -651,50 +653,61 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       return ra;
    }
 
-   private void processLogin(User user) {
-      if(((Integer)user.properties.get("access")).intValue() >= 60) {
+   private void processLogin(User user)
+   {
+      if ((Integer) user.properties.get("access") >= 60) {
          user.setAsAdmin();
          SmartFoxServer.log.fine(user.getName() + " has administrator privileges.");
-      } else if(((Integer)user.properties.get("access")).intValue() >= 40) {
+      } else if((Integer) user.properties.get("access") >= 40) {
          user.setAsModerator();
          SmartFoxServer.log.fine(user.getName() + " has moderator privileges.");
       }
-      QueryResult rs = world.db.jdbc.query("SELECT * FROM users WHERE id=?", new Object[]{user.properties.get("dbId")});
-      while(rs.next()){
-      user.properties.put("requestcounter", Integer.valueOf(0));
-      user.properties.put("requestwarncounter", Integer.valueOf(0));
-      user.properties.put("requestrepeatedcounter", Integer.valueOf(0));
-      user.properties.put("requestlast", "");
-      user.properties.put("requestlastmili", Long.valueOf(System.currentTimeMillis()));
-      user.properties.put("stats", new Stats(user, this.world));
-      user.properties.put("equipment", new JSONObject());
-      user.properties.put("regenaration", new Regeneration(user, this.world));
-      user.properties.put("guildobj", this.getGuildObject(((Integer)user.properties.get("guildid")).intValue()));
-      user.properties.put("userrefresh", this.getUserData(((Integer)user.properties.get("dbId")).intValue(), false));
-      user.properties.put("auras", Collections.newSetFromMap(new ConcurrentHashMap()));
-      user.properties.put("lastmessagetime", Long.valueOf(System.currentTimeMillis()));
-      user.properties.put("partyId", Integer.valueOf(-1));
-      user.properties.put("quests", new HashSet());
-      user.properties.put("drops", new HashMap());
-      user.properties.put("factions", new HashMap());
-      user.properties.put("skills", new HashMap());
-      user.properties.put("tempinventory", new HashMap());
-      user.properties.put("xpboost", Boolean.valueOf(false));
-      user.properties.put("goldboost", Boolean.valueOf(false));
-      user.properties.put("cpboost", Boolean.valueOf(false));
-      user.properties.put("repboost", Boolean.valueOf(false));
-      user.properties.put("requestedparty", new HashSet());
-      user.properties.put("requestedfriend", new HashSet());
-      user.properties.put("requestedduel", new HashSet());
-      user.properties.put("requestedguild", new HashSet());
-      user.properties.put("afk", Boolean.valueOf(false));
-      user.properties.put("hp", Integer.valueOf(100));
-      user.properties.put("gold", rs.getInt("Gold"));
-      user.properties.put("hpmax", Integer.valueOf(100));
-      user.properties.put("mp", Integer.valueOf(100));
-      user.properties.put("mpmax", Integer.valueOf(100));
-      user.properties.put("state", Integer.valueOf(1));
-      user.properties.put("pvpteam", Integer.valueOf(0));
+
+      QueryResult rs = world.db.jdbc.query("SELECT * FROM users WHERE id=?", user.properties.get("dbId"));
+      while(rs.next()) {
+          user.properties.put("requestcounter", Integer.valueOf(0));
+          user.properties.put("requestwarncounter", Integer.valueOf(0));
+          user.properties.put("requestrepeatedcounter", Integer.valueOf(0));
+          user.properties.put("requestlast", "");
+          user.properties.put("requestlastmili", Long.valueOf(System.currentTimeMillis()));
+          user.properties.put("stats", new Stats(user, this.world));
+          user.properties.put("equipment", new JSONObject());
+          user.properties.put("regenaration", new Regeneration(user, this.world));
+          user.properties.put("guildobj", this.getGuildObject(((Integer)user.properties.get("guildid")).intValue()));
+          user.properties.put("userrefresh", this.getUserData(((Integer)user.properties.get("dbId")).intValue(), false));
+          user.properties.put("auras", Collections.newSetFromMap(new ConcurrentHashMap()));
+          user.properties.put("lastmessagetime", Long.valueOf(System.currentTimeMillis()));
+          user.properties.put("partyId", Integer.valueOf(-1));
+          user.properties.put("quests", new HashSet());
+          user.properties.put("drops", new HashMap());
+          user.properties.put("factions", new HashMap());
+          user.properties.put("skills", new HashMap());
+          user.properties.put("tempinventory", new HashMap());
+          user.properties.put("xpboost", Boolean.valueOf(false));
+          user.properties.put("goldboost", Boolean.valueOf(false));
+          user.properties.put("cpboost", Boolean.valueOf(false));
+          user.properties.put("repboost", Boolean.valueOf(false));
+          user.properties.put("requestedparty", new HashSet());
+          user.properties.put("requestedfriend", new HashSet());
+          user.properties.put("requestedduel", new HashSet());
+          user.properties.put("requestedguild", new HashSet());
+
+          user.properties.put(Users.REQUESTED_TRADE, new HashSet());
+          user.properties.put(Users.TRADE_OFFERS, new JSONObject());
+          user.properties.put(Users.TRADE_TARGET, -1);
+          user.properties.put(Users.TRADE_DEAL, 0);
+          user.properties.put(Users.TRADE_LOCK, 0);
+          user.properties.put(Users.TRADE_COINS, 0);
+          user.properties.put(Users.TRADE_GOLD, 0);
+
+          user.properties.put("afk", Boolean.valueOf(false));
+          user.properties.put("hp", Integer.valueOf(100));
+          user.properties.put("gold", rs.getInt("Gold"));
+          user.properties.put("hpmax", Integer.valueOf(100));
+          user.properties.put("mp", Integer.valueOf(100));
+          user.properties.put("mpmax", Integer.valueOf(100));
+          user.properties.put("state", Integer.valueOf(1));
+          user.properties.put("pvpteam", Integer.valueOf(0));
       }
    }
 
@@ -1804,10 +1817,12 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
          userData.put("strElement", user.properties.get("none"));
          userData.put("strClassName", user.properties.get("classname"));
          userData.put("strGender", user.properties.get("gender"));
+
          userData.put("strHairFilename", hair.getFile());
          userData.put("strHairName", hair.getName());
          userData.put("strUsername", user.properties.get("username"));
-         userData.put("strLanguage", user.properties.get("language"));
+          userData.put("strChatColor", user.properties.get(Users.COLOR_CHAT));
+          userData.put("strLanguage", user.properties.get("language"));
          if(((Integer)user.properties.get("guildid")).intValue() > 0) {
             JSONObject result = (JSONObject)user.properties.get("guildobj");
             JSONObject guild = new JSONObject();

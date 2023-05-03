@@ -6,8 +6,11 @@ import world.behemoth.db.objects.*;
 import world.behemoth.db.objects.Class;
 import world.behemoth.discord.Bot;
 import world.behemoth.tasks.ACGiveaway;
+import world.behemoth.tasks.FreeDbPool;
 import world.behemoth.tasks.FreeSFSPool;
 import world.behemoth.tasks.WarzoneQueue;
+import world.behemoth.tasks.Restart;
+
 import world.behemoth.world.stats.Stats;
 import com.google.common.collect.ArrayListMultimap;
 import it.gotoandplay.smartfoxserver.SmartFoxServer;
@@ -123,7 +126,9 @@ public class World {
     public int REP_RATE = 1;
    public int DROP_RATE = 1;
    private AbstractExtension ext;
-   private ScheduledExecutorService tasks;
+
+    public Restart restart;
+    private ScheduledExecutorService tasks;
     public Bot discord;
 
     public World(AbstractExtension ext, Zone zone) {
@@ -136,14 +141,11 @@ public class World {
       this.parties = new Parties();
       this.tasks = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
       this.warzoneQueue = new WarzoneQueue(this);
-
-        if (! (ConfigData.DISCORD_BOT_TOKEN).isEmpty()) {
-            this.discord = new Bot(ConfigData.DISCORD_BOT_TOKEN, this);
-        };
-
+      this.discord = new Bot(ConfigData.DISCORD_BOT_TOKEN, this);
       this.tasks.scheduleAtFixedRate(this.warzoneQueue, 5L, 5L, TimeUnit.SECONDS);
-      this.tasks.scheduleAtFixedRate(new ACGiveaway(this), 30L, 30L, TimeUnit.MINUTES);
-      this.tasks.scheduleAtFixedRate(new FreeSFSPool(), 30L, 30L, TimeUnit.MINUTES);
+//      this.tasks.scheduleAtFixedRate(new ACGiveaway(this), 30L, 30L, TimeUnit.MINUTES);
+        this.tasks.scheduleAtFixedRate(new FreeDbPool(this.db), 30L, 30L, TimeUnit.MINUTES);
+        this.tasks.scheduleAtFixedRate(new FreeSFSPool(), 30L, 30L, TimeUnit.MINUTES);
       this.retrieveDatabaseObject("all");
       SmartFoxServer.log.info("World initialized.");
    }
@@ -177,6 +179,82 @@ public class World {
       this.ext = null;
       SmartFoxServer.log.info("World destroyed.");
    }
+
+    public String clearHTMLTags(String text) {
+        return text.replaceAll("\\<.*?\\>", "");
+    }
+
+    public String getServerRates(String name) {
+        String type = "";
+        switch (name.toLowerCase()) {
+            case "exp":
+                type = "Experience";
+                break;
+            case "cp":
+                type = "Class Point";
+                break;
+            case "gold":
+                type = "Gold";
+                break;
+            case "coin":
+                type = "Adventure Coin";
+                break;
+            case "rep":
+                type = "Reputation";
+                break;
+            case "drop":
+                type = "Drop";
+                break;
+            case "all":
+                type = "All";
+                break;
+        }
+
+        return type;
+    }
+
+    public void updateServerRates(String rates, int chance) {
+        switch(rates.toLowerCase()){
+            case "exp":
+                this.EXP_RATE = chance;
+                this.coreValues.put("serverRatesExp", Double.valueOf(chance));
+                this.db.getJdbc().run("UPDATE settings_rates SET value = ? WHERE name = ?", new Object[]{chance, "serverRatesExp"});
+                break;
+            case "cp":
+                this.CP_RATE = chance;
+                this.coreValues.put("serverRatesCP", Double.valueOf(chance));
+                this.db.getJdbc().run("UPDATE settings_rates SET value = ? WHERE name = ?", new Object[]{chance, "serverRatesCP"});
+                break;
+            case "gold":
+                this.GOLD_RATE = chance;
+                this.coreValues.put("serverRatesGold", Double.valueOf(chance));
+                this.db.getJdbc().run("UPDATE settings_rates SET value = ? WHERE name = ?", new Object[]{chance, "serverRatesGold"});
+                break;
+            case "coin":
+                this.COIN_RATE = chance;
+                this.coreValues.put("serverRatesCoin", Double.valueOf(chance));
+                this.db.getJdbc().run("UPDATE settings_rates SET value = ? WHERE name = ?", new Object[]{chance, "serverRatesCoin"});
+                break;
+            case "rep":
+                this.REP_RATE = chance;
+                this.coreValues.put("serverRatesRep", Double.valueOf(chance));
+                this.db.getJdbc().run("UPDATE settings_rates SET value = ? WHERE name = ?", new Object[]{chance, "serverRatesRep"});
+                break;
+            case "drop":
+                this.DROP_RATE = chance;
+                this.coreValues.put("serverRatesDrop", Double.valueOf(chance));
+                this.db.getJdbc().run("UPDATE settings_rates SET value = ? WHERE name = ?", new Object[]{chance, "serverRatesDrop"});
+                break;
+            case "all":
+                updateServerRates("exp", chance);
+                updateServerRates("cp", chance);
+                updateServerRates("gold", chance);
+                updateServerRates("coin", chance);
+                updateServerRates("rep", chance);
+                updateServerRates("drop", chance);
+                break;
+        }
+    }
 
    public final boolean retrieveDatabaseObject(String type) {
       HashMap coreValuesData;
@@ -352,8 +430,10 @@ public class World {
          } else if(type.equals("settings")) {
             this.messageOfTheDay = this.db.jdbc.queryForString("SELECT MOTD FROM servers WHERE Name = ?", new Object[]{ConfigData.SERVER_NAME});
             this.newsString = (String)this.db.jdbc.queryForObject("SELECT * FROM settings_login", newsCreator, new Object[0]);
+
             coreValuesData = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM settings_rates", coreValuesMapper, new Object[0]));
             this.coreValues = coreValuesData;
+
             chatFiltersData1 = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM settings_filters", chatFiltersMapper, new Object[0]));
             this.chatFilters = chatFiltersData1;
 
@@ -363,6 +443,8 @@ public class World {
              if (! (ConfigData.DISCORD_BOT_TOKEN).isEmpty()) {
                  HashMap commandData = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM discords_commands", DiscordCommand.resultSetMapper));
                  this.discord.commands = commandData;
+//                 HashMap commandSetting = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM discords_settings", DiscordCommand.resultSetMapper));
+//                 this.discord.settings = commandSetting;
              };
 
             SmartFoxServer.log.info("Server settings retrieved.");

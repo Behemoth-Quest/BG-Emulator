@@ -80,21 +80,21 @@ public class Action implements IRequest {
                }
             }
 
-            if(user.properties.get("perfecttimings") != null && !skill.getReference().equals("aa")) {
-               Long var52 = Long.valueOf(System.currentTimeMillis());
-               Long maxMana = Long.valueOf(((Long)user.properties.get("perfecttimings")).longValue() + (long)skill.getCooldown() - (long)(skill.getCooldown() / 2) - 500L);
-               Integer targets = (Integer)user.properties.get("requestbotcounter");
-               if(targets == null) {
-                  user.properties.put("requestbotcounter", Integer.valueOf(0));
-               } else if(maxMana.longValue() > var52.longValue()) {
-                  user.properties.put("requestbotcounter", Integer.valueOf(0));
-               } else if(targets.intValue() >= 5) {
-                  world.sendServerMessage(user.getName() + " is suspected of botting thus kicked by the server!");
-                  world.users.kick(user);
-               } else {
-                  user.properties.put("requestbotcounter", Integer.valueOf(targets.intValue() + 1));
-               }
-            }
+//            if(user.properties.get("perfecttimings") != null && !skill.getReference().equals("aa")) {
+//               Long var52 = Long.valueOf(System.currentTimeMillis());
+//               Long maxMana = Long.valueOf(((Long)user.properties.get("perfecttimings")).longValue() + (long)skill.getCooldown() - (long)(skill.getCooldown() / 2) - 500L);
+//               Integer targets = (Integer)user.properties.get("requestbotcounter");
+//               if(targets == null) {
+//                  user.properties.put("requestbotcounter", Integer.valueOf(0));
+//               } else if(maxMana.longValue() > var52.longValue()) {
+//                  user.properties.put("requestbotcounter", Integer.valueOf(0));
+//               } else if(targets.intValue() >= 5) {
+//                  world.sendServerMessage(user.getName() + " is suspected of botting thus kicked by the server!");
+//                  world.users.kick(user);
+//               } else {
+//                  user.properties.put("requestbotcounter", Integer.valueOf(targets.intValue() + 1));
+//               }
+//            }
 
             if(user.properties.get(skill.getReference()) != null) {
                long var53 = System.currentTimeMillis();

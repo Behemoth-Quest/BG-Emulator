@@ -53,15 +53,15 @@ public class UserCommand implements IRequest {
    public static final String QUEUE_COUNT = "queuecount";
    public static final String REPORT_LANG = "reportlang";
 
-   public UserCommand() {
-      super();
-   }
+   public static final String ADD_REPS = "addreps";
 
-   public void process(String[] params, User user, World world, Room room) throws RequestException {
+   @Override
+   public void process(String[] params, User user, World world, Room room) throws RequestException
+   {
       String cmd = params[0];
-
       int muteTimeInMinutes;
-      if(cmd.equals("reportlang")) {
+
+      if (cmd.equals("reportlang")) {
          muteTimeInMinutes = world.db.jdbc.queryForInt("SELECT Access FROM users WHERE Name = ?", new Object[]{params[1].toLowerCase()});
          boolean seconds = false;
          if(muteTimeInMinutes >= 40) {
@@ -151,7 +151,7 @@ public class UserCommand implements IRequest {
       } else if(!cmd.equals("ignoreList")) {
          if(cmd.equals("uopref")) {
             world.users.changePreferences(user, params[1], Boolean.parseBoolean(params[2]));
-         } else if(user.isAdmin()) {
+         } else if (user.isAdmin()) {
             this.adminCommand(params, user, world, room);
             this.moderatorCommand(params, user, world, room);
          } else if(user.isModerator()) {
@@ -239,7 +239,7 @@ public class UserCommand implements IRequest {
          world.send(new String[]{"server", "Gold: " + world.GOLD_RATE}, user);
          world.send(new String[]{"server", "Class Points: " + world.CP_RATE}, user);
          world.send(new String[]{"server", "Drop: " + world.DROP_RATE}, user);
-      } else if(cmd.equals("help")) {
+      } else if (cmd.equals("help")) {
          world.send(new String[]{"server", "/shutdown"}, user);
          world.send(new String[]{"server", "/shutdownnow"}, user);
          world.send(new String[]{"server", "/restart"}, user);
@@ -324,13 +324,10 @@ public class UserCommand implements IRequest {
             Interface.jTextArea2.append("iay:"+user.getName()+":"+var13);
          }
       } else if(cmd.equals("addgold")) {
-//         world.users.giveRewards(user, 0, Integer.parseInt(params[1]), 0, 0, -1, user.getUserId(), "p");
          world.users.giveRewards(user, 0, Integer.parseInt(params[1]), 0, 0, 0, -1, user.getUserId(), "p");
       } else if(cmd.equals("addcp")) {
-//         world.users.giveRewards(user, 0, 0, Integer.parseInt(params[1]), 0, -1, user.getUserId(), "p");
          world.users.giveRewards(user, 0, 0, 0, Integer.parseInt(params[1]), 0, -1, user.getUserId(), "p");
       } else if(cmd.equals("addxp")) {
-//         world.users.giveRewards(user, Integer.parseInt(params[1]), 0, 0, 0, -1, user.getUserId(), "p");
          world.users.giveRewards(user, Integer.parseInt(params[1]), 0, 0, 0, 0, -1, user.getUserId(), "p");
       } else if(cmd.equals("addcoin")) {
          int var15 = Integer.parseInt(params[1]);
@@ -342,7 +339,14 @@ public class UserCommand implements IRequest {
          world.send(var16, user);
          world.db.jdbc.run("UPDATE users SET Coins = (Coins + ?) WHERE id=?", new Object[]{Integer.valueOf(var15), user.properties.get("dbId")});
          world.send(new String[]{"server", var15 + "ACs has been added to your account."}, user);
-      } else if(cmd.equals("level")) {
+      } else if (cmd.equals(ADD_REPS)) {
+         if (Integer.parseInt(params[1]) > 999999) {
+            throw new RequestException("Cannot go more beyond 999,999 currency.");
+         }
+         world.users.giveRewards(user, 0, 0, 0, 0, Integer.parseInt(params[2]), Integer.parseInt(params[1]), user.getUserId(), "p");
+      }
+
+      else if(cmd.equals("level")) {
          world.users.levelUp(user, Integer.parseInt(params[1]));
       } else if(cmd.equals("emoteall")) {
          User[] var17 = room.getAllUsers();
@@ -366,6 +370,7 @@ public class UserCommand implements IRequest {
             world.send(new String[]{"server", "/pull (username)"}, user);
             world.send(new String[]{"server", "/iay (message)"}, user);
             world.send(new String[]{"server", "/addgold, /addcp, /addxp, /addcoin (amount)"}, user);
+            world.send(new String[]{"server", "/addreps (rep id) (amount)"}, user);
             world.send(new String[]{"server", "/level (level)"}, user);
             world.send(new String[]{"server", "/shop (shop id)"}, user);
          }

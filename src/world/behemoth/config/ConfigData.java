@@ -28,6 +28,8 @@ public class ConfigData {
    public static String DISCORD_BOT_TOKEN;
    public static String DISCORD_BOT_STATUS;
 
+   public static String DISCORD_ZONE_WEBHOOK;
+
    public static long ANTI_MESSAGEFLOOD_MIN_MSG_TIME;
    public static int ANTI_MESSAGEFLOOD_TOLERANCE;
    public static int ANTI_MESSAGEFLOOD_MAX_REPEATED;
@@ -126,6 +128,8 @@ public class ConfigData {
 
          DISCORD_BOT_TOKEN = config.getProperty("discord.bot.token");
          DISCORD_BOT_STATUS = config.getProperty("discord.bot.status");
+
+         DISCORD_ZONE_WEBHOOK = config.getProperty("discord.zone.webhook");
 
          ANTI_MESSAGEFLOOD_MIN_MSG_TIME = Long.parseLong(config.getProperty("antiflood.message.minimumtime"));
          ANTI_MESSAGEFLOOD_TOLERANCE = Integer.parseInt(config.getProperty("antiflood.message.tolerance"));

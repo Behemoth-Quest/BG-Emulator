@@ -210,7 +210,9 @@ public class MonsterAI implements Runnable {
          this.mana = 0;
          this.state = 0;
          Monster mon1 = (Monster)this.world.monsters.get(Integer.valueOf(this.monsterId));
-         this.world.scheduleTask(new MonsterRespawn(this.world, this), 20L, TimeUnit.SECONDS);
+
+         this.world.scheduleTask(new MonsterRespawn(this.world, this), 3L, TimeUnit.SECONDS);
+
          HashSet drops1 = new HashSet();
          Iterator i$ = mon1.drops.iterator();
 

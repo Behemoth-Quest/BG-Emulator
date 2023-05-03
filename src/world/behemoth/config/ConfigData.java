@@ -24,6 +24,10 @@ public class ConfigData {
    public static int DB_MAX_CONNECTIONS;
    public static String SERVER_NAME;
    public static boolean STAFF_ONLY;
+
+   public static String DISCORD_BOT_TOKEN;
+   public static String DISCORD_BOT_STATUS;
+
    public static long ANTI_MESSAGEFLOOD_MIN_MSG_TIME;
    public static int ANTI_MESSAGEFLOOD_TOLERANCE;
    public static int ANTI_MESSAGEFLOOD_MAX_REPEATED;
@@ -119,6 +123,10 @@ public class ConfigData {
 
          SERVER_NAME = config.getProperty("server.name");
          STAFF_ONLY = Boolean.parseBoolean(config.getProperty("server.staffonly"));
+
+         DISCORD_BOT_TOKEN = config.getProperty("discord.bot.token");
+         DISCORD_BOT_STATUS = config.getProperty("discord.bot.status");
+
          ANTI_MESSAGEFLOOD_MIN_MSG_TIME = Long.parseLong(config.getProperty("antiflood.message.minimumtime"));
          ANTI_MESSAGEFLOOD_TOLERANCE = Integer.parseInt(config.getProperty("antiflood.message.tolerance"));
          ANTI_MESSAGEFLOOD_MAX_REPEATED = Integer.parseInt(config.getProperty("antiflood.message.maxrepeated"));

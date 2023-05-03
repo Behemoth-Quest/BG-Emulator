@@ -139,6 +139,7 @@ public class GetQuests implements IRequest {
             var29.put("iClass", Integer.valueOf(questObj.getReqClassId()));
             var29.put("iExp", Integer.valueOf(questObj.getExperience()));
             var29.put("iGold", Integer.valueOf(questObj.getGold()));
+            var29.put("iCoins", Integer.valueOf(questObj.getCoins()));
             var29.put("iLvl", Integer.valueOf(questObj.getLevel()));
             var29.put("iRep", Integer.valueOf(questObj.getReputation()));
             var29.put("iReqCP", Integer.valueOf(questObj.getReqClassPoints()));

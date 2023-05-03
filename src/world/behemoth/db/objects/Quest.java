@@ -17,7 +17,7 @@ public class Quest {
    private int reqClassId;
    private int reqClassPoints;
    private int experience;
-   private int gold;
+   private int gold, coins;
    private int reputation;
    private int classPoints;
    private int level;
@@ -72,6 +72,7 @@ public class Quest {
 /*  70: 63 */       quest.reqClassPoints = rs.getInt("ReqClassPoints");
 /*  71: 64 */       quest.experience = rs.getInt("Experience");
 /*  72: 65 */       quest.gold = rs.getInt("Gold");
+                     quest.coins = rs.getInt("Coins");
 /*  73: 66 */       quest.reputation = rs.getInt("Reputation");
 /*  74: 67 */       quest.classPoints = rs.getInt("ClassPoints");
 /*  75: 68 */       quest.level = rs.getInt("Level");
@@ -91,7 +92,6 @@ public class Quest {
 /*  89: 82 */       return new AbstractMap.SimpleEntry(Integer.valueOf(quest.getId()), quest);
 /*  90:    */     }
 /*  91:    */   };
-
    public Quest() {
       super();
    }
@@ -122,6 +122,10 @@ public class Quest {
 
    public int getGold() {
       return this.gold;
+   }
+
+   public int getCoins() {
+      return this.coins;
    }
 
    public int getReputation() {

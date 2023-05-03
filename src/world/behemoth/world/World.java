@@ -2,22 +2,9 @@ package world.behemoth.world;
 
 import world.behemoth.config.ConfigData;
 import world.behemoth.db.Database;
-import world.behemoth.db.objects.Area;
-import world.behemoth.db.objects.Aura;
-import world.behemoth.db.objects.AuraEffects;
-import world.behemoth.db.objects.Cell;
+import world.behemoth.db.objects.*;
 import world.behemoth.db.objects.Class;
-import world.behemoth.db.objects.Enhancement;
-import world.behemoth.db.objects.EnhancementPattern;
-import world.behemoth.db.objects.Hair;
-import world.behemoth.db.objects.Hairshop;
-import world.behemoth.db.objects.Item;
-import world.behemoth.db.objects.MapMonster;
-import world.behemoth.db.objects.Monster;
-import world.behemoth.db.objects.Quest;
-import world.behemoth.db.objects.QuestReward;
-import world.behemoth.db.objects.Shop;
-import world.behemoth.db.objects.Skill;
+import world.behemoth.discord.Bot;
 import world.behemoth.tasks.ACGiveaway;
 import world.behemoth.tasks.FreeSFSPool;
 import world.behemoth.tasks.WarzoneQueue;
@@ -117,7 +104,10 @@ public class World {
    public HashMap<String, Double> coreValues;
    public HashMap<String, Integer> chatFilters;
    public HashMap<Integer, Integer> specialskills;
-   public Database db;
+    public HashMap<Integer, GameMenu> gameMenu;
+
+
+    public Database db;
    public Users users;
    public Rooms rooms;
    public Parties parties;
@@ -128,12 +118,15 @@ public class World {
    public int EXP_RATE = 1;
    public int CP_RATE = 1;
    public int GOLD_RATE = 1;
-   public int REP_RATE = 1;
+
+    public int COIN_RATE = 1;
+    public int REP_RATE = 1;
    public int DROP_RATE = 1;
    private AbstractExtension ext;
    private ScheduledExecutorService tasks;
+    public Bot discord;
 
-   public World(AbstractExtension ext, Zone zone) {
+    public World(AbstractExtension ext, Zone zone) {
       super();
       this.ext = ext;
       this.zone = zone;
@@ -143,6 +136,11 @@ public class World {
       this.parties = new Parties();
       this.tasks = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
       this.warzoneQueue = new WarzoneQueue(this);
+
+        if (! (ConfigData.DISCORD_BOT_TOKEN).isEmpty()) {
+            this.discord = new Bot(ConfigData.DISCORD_BOT_TOKEN, this);
+        };
+
       this.tasks.scheduleAtFixedRate(this.warzoneQueue, 5L, 5L, TimeUnit.SECONDS);
       this.tasks.scheduleAtFixedRate(new ACGiveaway(this), 30L, 30L, TimeUnit.MINUTES);
       this.tasks.scheduleAtFixedRate(new FreeSFSPool(), 30L, 30L, TimeUnit.MINUTES);
@@ -184,14 +182,16 @@ public class World {
       HashMap coreValuesData;
       Iterator chatFiltersData;
       HashMap chatFiltersData1;
-      if(type.equals("item")) {
+       HashMap<Integer, GameMenu> gameMenu;
+
+       if(type.equals("item")) {
          coreValuesData = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM items WHERE id > 0", Item.resultSetMapper, new Object[0]));
          chatFiltersData = coreValuesData.values().iterator();
 
          HashMap hairshop;
          while(chatFiltersData.hasNext()) {
             Item i$ = (Item)chatFiltersData.next();
-            hairshop = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM items_requirements WHERE ItemID = ?", Item.requirementMapper, new Object[]{Integer.valueOf(i$.getId())}));
+            hairshop = new HashMap(this.db.getJdbc().queryForMap("SELECT * FROM items_requirements WHERE ItemID = ?", Item.requirementMapper, Integer.valueOf(i$.getId())));
             i$.requirements = hairshop;
             if(i$.getEquipment().equals("ar") && !i$.getType().equals("Enhancement")) {
                Class reward = (Class)this.db.jdbc.queryForObject("SELECT * FROM classes WHERE ItemID = ?", Class.beanCreator, new Object[]{Integer.valueOf(i$.getId())});
@@ -356,6 +356,15 @@ public class World {
             this.coreValues = coreValuesData;
             chatFiltersData1 = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM settings_filters", chatFiltersMapper, new Object[0]));
             this.chatFilters = chatFiltersData1;
+
+             gameMenu = new HashMap<>(this.db.jdbc.queryForMap("SELECT * FROM settings_menu", GameMenu.resultSetMapper));
+             this.gameMenu = gameMenu;
+
+             if (! (ConfigData.DISCORD_BOT_TOKEN).isEmpty()) {
+                 HashMap commandData = new HashMap(this.db.jdbc.queryForMap("SELECT * FROM discords_commands", DiscordCommand.resultSetMapper));
+                 this.discord.commands = commandData;
+             };
+
             SmartFoxServer.log.info("Server settings retrieved.");
          } else {
             if(!type.equals("all")) {

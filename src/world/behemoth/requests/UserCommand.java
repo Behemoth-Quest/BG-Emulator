@@ -8,6 +8,7 @@ import world.behemoth.dispatcher.IRequest;
 import world.behemoth.dispatcher.RequestException;
 import world.behemoth.tasks.Restart;
 import world.behemoth.tasks.Shutdown;
+import world.behemoth.world.Users;
 import world.behemoth.world.World;
 import world.behemoth.world.stats.Stats;
 import it.gotoandplay.smartfoxserver.SmartFoxServer;
@@ -58,6 +59,7 @@ public class UserCommand implements IRequest {
 
    public void process(String[] params, User user, World world, Room room) throws RequestException {
       String cmd = params[0];
+
       int muteTimeInMinutes;
       if(cmd.equals("reportlang")) {
          muteTimeInMinutes = world.db.jdbc.queryForInt("SELECT Access FROM users WHERE Name = ?", new Object[]{params[1].toLowerCase()});
@@ -83,30 +85,10 @@ public class UserCommand implements IRequest {
       String userFrame;
       String var15;
       int var17;
-      if(cmd.equals("tfer")) {
-         var15 = params[2].toLowerCase().replaceAll("faroff", "hometree");
-         if(var15.contains("guildhall")) {
-            var17 = ((Integer)user.properties.get("guildid")).intValue();
-            countryCode = (String)user.properties.get("language");
-            if(var17 <= 0) {
-               if(countryCode.equals("BR")) {
-                  throw new RequestException("Voce nao esta em uma guilda!");
-               }
 
-               throw new RequestException("You are not in a guild!");
-            }
-
-            JSONObject roomToJoin = (JSONObject)user.properties.get("guildobj");
-            userFrame = roomToJoin.getString("Name");
-            if(!world.areas.containsKey(userFrame)) {
-               Hall userPad = new Hall(var17);
-               world.areas.put(userFrame, userPad);
-            }
-
-            world.rooms.basicGuildHallJoin(user, userFrame);
-         } else {
-            world.rooms.basicRoomJoin(user, var15);
-         }
+      if (cmd.equals(JOIN_ROOM)) {
+         String roomName = params[2].toLowerCase().replaceAll("battleon", "faroff");
+         world.rooms.basicRoomJoin(user, roomName);
       } else if(cmd.equals("who")) {
          JSONObject var16 = new JSONObject();
          JSONObject var18 = new JSONObject();
@@ -342,11 +324,14 @@ public class UserCommand implements IRequest {
             Interface.jTextArea2.append("iay:"+user.getName()+":"+var13);
          }
       } else if(cmd.equals("addgold")) {
-         world.users.giveRewards(user, 0, Integer.parseInt(params[1]), 0, 0, -1, user.getUserId(), "p");
+//         world.users.giveRewards(user, 0, Integer.parseInt(params[1]), 0, 0, -1, user.getUserId(), "p");
+         world.users.giveRewards(user, 0, Integer.parseInt(params[1]), 0, 0, 0, -1, user.getUserId(), "p");
       } else if(cmd.equals("addcp")) {
-         world.users.giveRewards(user, 0, 0, Integer.parseInt(params[1]), 0, -1, user.getUserId(), "p");
+//         world.users.giveRewards(user, 0, 0, Integer.parseInt(params[1]), 0, -1, user.getUserId(), "p");
+         world.users.giveRewards(user, 0, 0, 0, Integer.parseInt(params[1]), 0, -1, user.getUserId(), "p");
       } else if(cmd.equals("addxp")) {
-         world.users.giveRewards(user, Integer.parseInt(params[1]), 0, 0, 0, -1, user.getUserId(), "p");
+//         world.users.giveRewards(user, Integer.parseInt(params[1]), 0, 0, 0, -1, user.getUserId(), "p");
+         world.users.giveRewards(user, Integer.parseInt(params[1]), 0, 0, 0, 0, -1, user.getUserId(), "p");
       } else if(cmd.equals("addcoin")) {
          int var15 = Integer.parseInt(params[1]);
          JSONObject var16 = new JSONObject();

@@ -48,7 +48,7 @@ import java.util.AbstractMap;
 /*  47:    */   private boolean upgrade;
 /*  48:    */   private boolean staff;
 /*  49:    */   private boolean temporary;
-/*  50:    */   private boolean sell;
+/*  50:    */   private boolean sell, market;
 /*  51:    */   public Class classObj;
 /*  52:    */   public Map<Integer, Integer> requirements;
 /*  53: 38 */   public static final ResultSetMapper<Integer, Integer> requirementMapper = new ResultSetMapper()
@@ -102,6 +102,8 @@ import java.util.AbstractMap;
 /* 101: 84 */       item.staff = rs.getBoolean("Staff");
 /* 102: 85 */       item.temporary = rs.getBoolean("Temporary");
 /* 103: 86 */       item.sell = rs.getBoolean("Sell");
+                    item.market = rs.getBoolean("Market");
+
 /* 104:    */       
 /* 105: 88 */       return new AbstractMap.SimpleEntry(Integer.valueOf(item.getId()), item);
 /* 106:    */     }
@@ -122,6 +124,8 @@ import java.util.AbstractMap;
 /* 121:102 */     item.put("ItemID", Integer.valueOf(itemObj.getId()));
 /* 122:103 */     item.put("bCoins", Integer.valueOf(itemObj.isCoins() ? 1 : 0));
 /* 123:104 */     item.put("bHouse", Integer.valueOf(itemObj.isHouse() ? 1 : 0));
+                    item.put("bSell", Integer.valueOf(itemObj.isSellable() ? 1 : 0));
+                    item.put("bMarket", Integer.valueOf(itemObj.isMarketable() ? 1 : 0));
 /* 124:105 */     item.put("bPTR", Integer.valueOf(0));
 /* 125:106 */     item.put("bStaff", Integer.valueOf(itemObj.isStaff() ? 1 : 0));
 /* 126:107 */     item.put("bTemp", Integer.valueOf(itemObj.isTemporary() ? 1 : 0));
@@ -288,7 +292,11 @@ import java.util.AbstractMap;
 /* 287:    */   {
 /* 288:242 */     return this.sell;
 /* 289:    */   }
-/* 290:    */   
+
+    public boolean isMarketable() {
+        return this.market;
+    }
+/* 290:    */
 /* 291:    */   public boolean isUpgrade()
 /* 292:    */   {
 /* 293:246 */     return this.upgrade;

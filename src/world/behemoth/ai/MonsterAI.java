@@ -12,6 +12,7 @@ import world.behemoth.tasks.MonsterAttack;
 import world.behemoth.tasks.MonsterAttackCooldown;
 import world.behemoth.tasks.MonsterRespawn;
 import world.behemoth.tasks.RemoveAura;
+import world.behemoth.world.Users;
 import world.behemoth.world.World;
 import world.behemoth.world.stats.Stats;
 import it.gotoandplay.smartfoxserver.SmartFoxServer;
@@ -32,6 +33,7 @@ import net.sf.json.JSONObject;
 public class MonsterAI implements Runnable {
    public ScheduledFuture<?> attacking;
    private World world;
+   private Monster monster;
    public volatile int monsterId;
    public volatile int mapId;
    public volatile int state;
@@ -239,12 +241,47 @@ public class MonsterAI implements Runnable {
                this.world.users.dropItem(user, md.itemId, md.quantity);
             }
 
-            this.world.users.giveRewards(user, mon1.getExperience(), mon1.getGold(), mon1.getReputation(), 0, -1, this.mapId, "m");
+            int gold = ((Integer) user.properties.get(Users.GOLD)).intValue() >= (this.world.coreValues.get("intGoldMax")).intValue() ? 0 : mon1.getGold();
+            int coins = ((Integer) user.properties.get(Users.COINS)).intValue() >= (this.world.coreValues.get("intCoinsMax")).intValue() ? 0 : mon1.getCoins();
+            this.world.users.giveRewards(user, mon1.getExperience(), gold, coins, mon1.getReputation(), 0, -1, this.mapId, "m");
+
+//            this.world.users.giveRewards(user, mon1.getExperience(), mon1.getGold(), mon1.getReputation(), 0, -1, this.mapId, "m");
+//            giveRewards();
          }
       }
    }
 
-   public boolean hasAura(int auraId) {
+   private void giveRewards() {
+      Set<MonsterDrop> drops = getDrops();
+      for (int userId : this.targets) {
+         User user = ExtensionHelper.instance().getUserById(userId);
+         if (user != null)
+            dropRewards(user, drops);
+      }
+   }
+
+   private Set<MonsterDrop> getDrops() {
+      Set<MonsterDrop> drops = new HashSet<MonsterDrop>();
+      for (MonsterDrop md : this.monster.drops)
+         if (Math.random() <= (md.chance * (double) world.DROP_RATE))
+            drops.add(md);
+
+      return drops;
+   }
+
+   private void dropRewards(User user, Set<MonsterDrop> drops)
+   {
+      //
+      Monster mon = this.monster;
+      for (MonsterDrop md : drops)
+         this.world.users.dropItem(user, md.itemId, md.quantity);
+
+      int gold = ((Integer) user.properties.get(Users.GOLD)).intValue() >= (this.world.coreValues.get("intGoldMax")).intValue() ? 0 : mon.getGold();
+      int coins = ((Integer) user.properties.get(Users.COINS)).intValue() >= (this.world.coreValues.get("intCoinsMax")).intValue() ? 0 : mon.getCoins();
+      this.world.users.giveRewards(user, mon.getExperience(), gold, coins, mon.getReputation(), 0, -1, this.mapId, "m");
+   }
+
+      public boolean hasAura(int auraId) {
       Iterator i$ = this.auras.iterator();
 
       Aura aura;

@@ -57,7 +57,9 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       ConcurrentHashMap properties = new ConcurrentHashMap();
       properties.put("dbId", Integer.valueOf(rs.getInt("id")));
       properties.put("username", rs.getString("Name"));
-      properties.put("gold", rs.getInt("Gold"));
+//      properties.put("gold", rs.getInt("Gold"));
+        properties.put(Users.GOLD, rs.getInt("Gold"));
+        properties.put(Users.COINS, rs.getInt("Coins"));
       properties.put("level", Integer.valueOf(rs.getInt("Level")));
       properties.put("access", Integer.valueOf(rs.getInt("Access")));
       properties.put("permamute", Integer.valueOf(rs.getInt("PermamuteFlag")));
@@ -110,6 +112,9 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
    public static final String HP_MAX = "hpmax";
    public static final String MP = "mp";
    public static final String MP_MAX = "mpmax";
+
+    public static final String GOLD = "gold";
+    public static final String COINS = "coins";
    public static final String LEVEL = "level";
    public static final String PAD = "pad";
    public static final String STATE = "state";
@@ -379,38 +384,73 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       result.close();
    }
 
-   public void giveRewards(User user, int exp, int gold, int cp, int rep, int factionId, int fromId, String npcType) {
+   public void giveRewards(
+           User user,
+           int exp,
+           int gold,
+           int coins,
+           int cp,
+           int rep,
+           int factionId,
+           int fromId,
+           String npcType
+   ) {
       boolean xpBoost = ((Boolean)user.properties.get("xpboost")).booleanValue();
       boolean goldBoost = ((Boolean)user.properties.get("goldboost")).booleanValue();
       boolean repBoost = ((Boolean)user.properties.get("repboost")).booleanValue();
       boolean cpBoost = ((Boolean)user.properties.get("cpboost")).booleanValue();
+
       int calcExp = xpBoost?exp * (1 + this.world.EXP_RATE):exp * this.world.EXP_RATE;
       int calcGold = goldBoost?gold * (1 + this.world.GOLD_RATE):gold * this.world.GOLD_RATE;
-      int calcRep = repBoost?rep * (1 + this.world.REP_RATE):rep * this.world.REP_RATE;
+       int calcCoin = (coins * this.world.COIN_RATE);
+       int calcRep = repBoost?rep * (1 + this.world.REP_RATE):rep * this.world.REP_RATE;
       int calcCp = cpBoost?cp * (1 + this.world.CP_RATE):cp * this.world.CP_RATE;
+
+//       Iterator iterator = ((JSONObject) user.properties.get(Users.EQUIPMENT)).values().iterator();
+//       while (iterator.hasNext()) {
+//           Item item = world.items.get(((JSONObject) iterator.next()).getInt("ItemID"));
+//           if (item.effects.iterator().hasNext()) {
+//               if (item.effects.iterator().next().getExp() != 0)
+//                   calcExp *= 1.0 + item.effects.iterator().next().getExp();
+//               if (item.effects.iterator().next().getGold() != 0)
+//                   calcGold *= 1.0 + item.effects.iterator().next().getGold();
+//               if (item.effects.iterator().next().getCoins() != 0)
+//                   calcCoin *= 1.0 + item.effects.iterator().next().getCoins();
+//               if (item.effects.iterator().next().getCP() != 0)
+//                   calcCp *= 1.0 + item.effects.iterator().next().getCP();
+//               if (item.effects.iterator().next().getReputation() != 0)
+//                   calcRep *= 1.0 + item.effects.iterator().next().getReputation();
+//           }
+//       }
+
       int maxLevel = ((Double)this.world.coreValues.get("intLevelMax")).intValue();
       int expReward = ((Integer)user.properties.get("level")).intValue() < maxLevel?calcExp:0;
       int classPoints = ((Integer)user.properties.get("cp")).intValue();
       int userLevel = ((Integer)user.properties.get("level")).intValue();
       int userCp = calcCp + classPoints >= 302500?302500:calcCp + classPoints;
       int curRank = Rank.getRankFromPoints(((Integer)user.properties.get("cp")).intValue());
+
       JSONObject eqp = (JSONObject)user.properties.get("equipment");
       JSONObject oldItem = eqp.getJSONObject("ar");
-      int itemQuantity = this.world.db.jdbc.queryForInt("SELECT Quantity FROM users_items WHERE ItemID=? AND UserID=?", new Object[]{oldItem.getInt("ItemID"), user.properties.get("dbId")});
+
+      int itemQuantity = this.world.db.jdbc.queryForInt("SELECT Quantity FROM users_items WHERE ItemID = ? AND UserID = ?", oldItem.getInt("ItemID"), user.properties.get("dbId"));
+
       Map factions = (Map)user.properties.get("factions");
-      JSONObject addGoldExp = new JSONObject();
+      JSONObject    addGoldExp = new JSONObject();
       addGoldExp.put("cmd", "addGoldExp");
       addGoldExp.put("id", Integer.valueOf(fromId));
       addGoldExp.put("intGold", Integer.valueOf(calcGold));
-      addGoldExp.put("typ", npcType);
-      if(userLevel < maxLevel) {
+       addGoldExp.put("intCoins", Integer.valueOf(calcCoin));
+       addGoldExp.put("typ", npcType);
+
+      if (userLevel < maxLevel) {
          addGoldExp.put("intExp", Integer.valueOf(expReward));
          if(xpBoost) {
             addGoldExp.put("bonusExp", Integer.valueOf(expReward / 2));
          }
       }
 
-      if(curRank != 10 && calcCp > 0) {
+      if (curRank != 10 && calcCp > 0) {
          addGoldExp.put("iCP", Integer.valueOf(calcCp));
          if(cpBoost) {
             addGoldExp.put("bonusCP", Integer.valueOf(calcCp / 2));
@@ -420,7 +460,7 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       }
 
       int userXp;
-      if(factionId > 1) {
+      if (factionId > 1) {
          int je = calcRep >= 302500?302500:calcRep;
          addGoldExp.put("FactionID", Integer.valueOf(factionId));
          addGoldExp.put("iRep", Integer.valueOf(calcRep));
@@ -459,42 +499,49 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       this.world.db.jdbc.beginTransaction();
 
       try {
-         QueryResult var36 = this.world.db.jdbc.query("SELECT Gold, Exp FROM users WHERE id = ? FOR UPDATE", new Object[]{user.properties.get("dbId")});
-         if(var36.next()) {
+         QueryResult var36 = this.world.db.jdbc.query("SELECT Gold, Coins, Exp FROM users WHERE id = ? FOR UPDATE", user.properties.get(Users.DATABASE_ID));
+         if (var36.next()) {
             userXp = var36.getInt("Exp") + expReward;
             int var37 = var36.getInt("Gold") + calcGold;
-            var36.close();
+             int userCoin = var36.getInt("Coins") + calcCoin;
+             var36.close();
 
-            while(userXp >= this.world.getExpToLevel(userLevel)) {
+            while (userXp >= this.world.getExpToLevel(userLevel)) {
                userXp -= this.world.getExpToLevel(userLevel);
                ++userLevel;
             }
 
-            if(userLevel != ((Integer)user.properties.get("level")).intValue()) {
+            if (userLevel != ((Integer)user.properties.get("level")).intValue()) {
                this.levelUp(user, userLevel);
                userXp = 0;
             }
 
-            if(calcGold > 0 || expReward > 0 && userLevel != maxLevel) {
-               this.world.db.jdbc.run("UPDATE users SET Gold = ?, Exp = ? WHERE id = ?", new Object[]{Integer.valueOf(var37), Integer.valueOf(userXp), user.properties.get("dbId")});
+//            if (calcGold > 0 || expReward > 0 && userLevel != maxLevel) {
+             if (calcGold > 0 || calcCoin > 0 || expReward > 0 && userLevel != maxLevel) {
+                 this.world.db.jdbc.run("UPDATE users SET Gold = ?, Coins = ?, Exp = ? WHERE id = ?", Integer.valueOf(var37), Integer.valueOf(userCoin), Integer.valueOf(userXp), user.properties.get("dbId"));
             }
 
-            if(curRank != 10 && calcCp > 0) {
-               eqp = (JSONObject)user.properties.get("equipment");
-               if(eqp.has("ar")) {
+             user.properties.put(Users.GOLD, var37);
+             user.properties.put(Users.COINS, userCoin);
+
+            if (curRank != 10 && calcCp > 0) {
+               eqp = (JSONObject) user.properties.get("equipment");
+               if (eqp.has("ar")) {
                   int itemId = oldItem.getInt("ItemID");
                   this.world.db.jdbc.run("UPDATE users_items SET Quantity = ? WHERE ItemID = ? AND UserID = ?", new Object[]{Integer.valueOf(userCp), Integer.valueOf(itemId), user.properties.get("dbId")});
-                  if(Rank.getRankFromPoints(userCp) > curRank) {
+                  if (Rank.getRankFromPoints(userCp) > curRank) {
                      this.loadSkills(user, (Item)this.world.items.get(Integer.valueOf(itemId)), userCp);
                   }
                }
-            } else if(curRank == 9){
-                int itemID = oldItem.getInt("ItemID");
-                int getItem = this.world.db.jdbc.queryForInt("SELECT EvolveID FROM items WHERE id=?", new Object[]{itemID});
-                if(getItem > 0){
-                    this.dropItem(user, getItem);
-                }
             }
+
+//            else if(curRank == 9){
+//                int itemID = oldItem.getInt("ItemID");
+//                int getItem = this.world.db.jdbc.queryForInt("SELECT EvolveID FROM items WHERE id=?", new Object[]{itemID});
+//                if(getItem > 0){
+//                    this.dropItem(user, getItem);
+//                }
+//            }
          }
 
          var36.close();
@@ -651,14 +698,23 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       }
    }
 
-   public void log(User user, String violation, String details) {
-      int userId = ((Integer)user.properties.get("dbId")).intValue();
-      this.world.db.jdbc.run("INSERT INTO users_logs (UserID, Violation, Details) VALUES (?, ?, ?)", new Object[]{Integer.valueOf(userId), violation, details});
-      if(!user.isBeingKicked) {
-         this.world.send(new String[]{"suspicious"}, user);
-      }
-
+   public void log(User user, String violation, String details)
+   {
+       log(user, violation, details, 0);
+//      int userId = ((Integer)user.properties.get("dbId")).intValue();
+//      this.world.db.jdbc.run("INSERT INTO users_logs (UserID, Violation, Details) VALUES (?, ?, ?)", Integer.valueOf(userId), violation, details);
+//      if (!user.isBeingKicked) {
+//         this.world.send(new String[]{"suspicious"}, user);
+//      }
    }
+
+    public void log(User user, String violation, String details, int map) {
+        int userId = ((Integer) user.properties.get(Users.DATABASE_ID)).intValue();
+        this.world.db.getJdbc().run("INSERT INTO users_logs (UserID, Violation, Details, MapID) VALUES (?, ?, ?, ?)", new Object[]{Integer.valueOf(userId), violation, details, map});
+        if (!user.isBeingKicked) {
+            this.world.send(new String[]{"suspicious"}, user);
+        }
+    }
 
    public void changePreferences(User user, String pref, boolean value) {
       int ia1 = ((Integer)user.properties.get("settings")).intValue();
@@ -1362,55 +1418,55 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       this.dropItem(user, itemId, 1);
    }
 
-   public void dropItem(User user, int itemId, int quantity) {
-      Item itemObj = (Item)this.world.items.get(Integer.valueOf(itemId));
-      if(!itemObj.getReqQuests().isEmpty()) {
+   public void dropItem(User user, int itemId, int quantity)
+   {
+      Item itemObj = (Item) this.world.items.get(Integer.valueOf(itemId));
+      if (!itemObj.getReqQuests().isEmpty()) {
          Boolean di = Boolean.valueOf(false);
          String[] tempInventory;
-         if(itemObj.getReqQuests().contains(",")) {
+         if (itemObj.getReqQuests().contains(",")) {
             tempInventory = itemObj.getReqQuests().split(",");
          } else {
             tempInventory = new String[]{itemObj.getReqQuests()};
          }
 
-         Set arrItems = (Set)user.properties.get("quests");
+         Set arrItems = (Set) user.properties.get("quests");
          String[] item = tempInventory;
          int userDrops = tempInventory.length;
 
-         for(int quantities = 0; quantities < userDrops; ++quantities) {
+         for (int quantities = 0; quantities < userDrops; ++quantities) {
             String questId = item[quantities];
-            if(arrItems.contains(Integer.valueOf(Integer.parseInt(questId)))) {
+            if (arrItems.contains(Integer.valueOf(Integer.parseInt(questId)))) {
                di = Boolean.valueOf(true);
                break;
             }
          }
 
-         if(!di.booleanValue()) {
+         if (!di.booleanValue()) {
             return;
          }
       }
 
       Map var12 = (Map)user.properties.get("tempinventory");
-      if(!itemObj.isTemporary()) {
+      if (!itemObj.isTemporary()) {
          QueryResult var13 = this.world.db.jdbc.query("SELECT Quantity FROM users_items WHERE ItemID = ? AND UserID = ?", new Object[]{Integer.valueOf(itemId), user.properties.get("dbId")});
-         if(var13.next()) {
+         if (var13.next()) {
             int var15 = var13.getInt("Quantity");
             var13.close();
-            if(var15 >= itemObj.getStack()) {
+            if (var15 >= itemObj.getStack()) {
                return;
             }
          }
-
          var13.close();
-      } else if(var12.containsKey(Integer.valueOf(itemId)) && ((Integer)var12.get(Integer.valueOf(itemId))).intValue() >= itemObj.getStack()) {
+      } else if (var12.containsKey(Integer.valueOf(itemId)) && ((Integer)var12.get(Integer.valueOf(itemId))).intValue() >= itemObj.getStack()) {
          return;
       }
 
       JSONObject var14 = new JSONObject();
       JSONObject var16 = new JSONObject();
       JSONObject var17;
-      if(itemObj.getType().equals("Enhancement")) {
-         var17 = Item.getItemJSON(itemObj, (Enhancement)this.world.enhancements.get(Integer.valueOf(itemObj.getEnhId())));
+      if (itemObj.getType().equals("Enhancement")) {
+         var17 = Item.getItemJSON(itemObj, (Enhancement) this.world.enhancements.get(Integer.valueOf(itemObj.getEnhId())));
       } else {
          var17 = Item.getItemJSON(itemObj);
       }
@@ -1418,49 +1474,83 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       var17.put("iQty", Integer.valueOf(quantity));
       var16.put(String.valueOf(itemId), var17);
       var14.put("items", var16);
-      var14.put("cmd", itemObj.isTemporary()?"addItems":"dropItem");
-      if(itemObj.isTemporary()) {
-         if(var12.containsKey(Integer.valueOf(itemId))) {
-            if(((Integer)var12.get(Integer.valueOf(itemId))).intValue() < itemObj.getStack()) {
+      var14.put("cmd", itemObj.isTemporary() ? "addItems" : "dropItem");
+      if (itemObj.isTemporary()) {
+         if (var12.containsKey(Integer.valueOf(itemId))) {
+            if (((Integer)var12.get(Integer.valueOf(itemId))).intValue() < itemObj.getStack()) {
                this.addTemporaryItem(user, itemId, quantity);
             }
          } else {
             this.addTemporaryItem(user, itemId, quantity);
          }
       } else {
-         Map var18 = (Map)user.properties.get("drops");
-         if(var18.containsKey(Integer.valueOf(itemId))) {
-            Queue var19 = (Queue)var18.get(Integer.valueOf(itemId));
-            var19.add(Integer.valueOf(quantity));
-         } else {
-            LinkedBlockingQueue var20 = new LinkedBlockingQueue();
-            var20.add(Integer.valueOf(quantity));
-            var18.put(Integer.valueOf(itemId), var20);
-         }
+          Map userDrops = (Map) user.properties.get(Users.DROPS);
+          int totalDropQty = quantity;
+          if (userDrops.containsKey(itemId)) {
+              if (itemObj.getStack() == 1)
+                  return;
+              totalDropQty += (Integer) userDrops.get(itemId);
+          }
+          userDrops.put(itemId, totalDropQty);
+
+//         Map var18 = (Map)user.properties.get("drops");
+//         if(var18.containsKey(Integer.valueOf(itemId))) {
+//            Queue var19 = (Queue)var18.get(Integer.valueOf(itemId));
+//            var19.add(Integer.valueOf(quantity));
+//         } else {
+//            LinkedBlockingQueue var20 = new LinkedBlockingQueue();
+//            var20.add(Integer.valueOf(quantity));
+//            var18.put(Integer.valueOf(itemId), var20);
+//         }
       }
 
       this.world.send(var14, user);
    }
 
-   public void setQuestValue(User user, int index, int value) {
-      if(index > 99) {
-         user.properties.put("quests2", Quests.updateValue((String)user.properties.get("quests2"), index - 100, value));
-         this.world.db.jdbc.run("UPDATE users SET Quests2 = ? WHERE id =  ?", new Object[]{user.properties.get("quests2"), user.properties.get("dbId")});
-      } else {
-         user.properties.put("quests1", Quests.updateValue((String)user.properties.get("quests1"), index, value));
-         this.world.db.jdbc.run("UPDATE users SET Quests = ? WHERE id = ?", new Object[]{user.properties.get("quests1"), user.properties.get("dbId")});
-      }
+//   public void setQuestValue(User user, int index, int value) {
+//      if(index > 99) {
+//         user.properties.put("quests2", Quests.updateValue((String)user.properties.get("quests2"), index - 100, value));
+//         this.world.db.jdbc.run("UPDATE users SET Quests2 = ? WHERE id =  ?", new Object[]{user.properties.get("quests2"), user.properties.get("dbId")});
+//      } else {
+//         user.properties.put("quests1", Quests.updateValue((String)user.properties.get("quests1"), index, value));
+//         this.world.db.jdbc.run("UPDATE users SET Quests = ? WHERE id = ?", new Object[]{user.properties.get("quests1"), user.properties.get("dbId")});
+//      }
+//
+//      JSONObject updateQuest = new JSONObject();
+//      updateQuest.put("cmd", "updateQuest");
+//      updateQuest.put("iIndex", Integer.valueOf(index));
+//      updateQuest.put("iValue", Integer.valueOf(value));
+//      this.world.send(updateQuest, user);
+//   }
 
-      JSONObject updateQuest = new JSONObject();
-      updateQuest.put("cmd", "updateQuest");
-      updateQuest.put("iIndex", Integer.valueOf(index));
-      updateQuest.put("iValue", Integer.valueOf(value));
-      this.world.send(updateQuest, user);
-   }
+    public void setQuestValue(User user, int index, int value)
+    {
+        if (index > 99) {
+            user.properties.put(Users.QUESTS_2, Quests.updateValue((String) user.properties.get(Users.QUESTS_2), index - 100, value));
+            this.world.db.getJdbc().run("UPDATE users SET Quests2 = ? WHERE id =  ?", new Object[]{user.properties.get(Users.QUESTS_2), user.properties.get(Users.DATABASE_ID)});
+        } else {
+            user.properties.put(Users.QUESTS_1, Quests.updateValue((String) user.properties.get(Users.QUESTS_1), index, value));
+            this.world.db.getJdbc().run("UPDATE users SET Quests = ? WHERE id = ?", new Object[]{user.properties.get(Users.QUESTS_1), user.properties.get(Users.DATABASE_ID)});
+        }
 
-   public int getQuestValue(User user, int index) {
-      return index > 99?Quests.lookAtValue((String)user.properties.get("quests2"), index - 100):Quests.lookAtValue((String)user.properties.get("quests1"), index);
-   }
+        JSONObject updateQuest = new JSONObject();
+        updateQuest.put("cmd", "updateQuest");
+        updateQuest.put("iIndex", Integer.valueOf(index));
+        updateQuest.put("iValue", Integer.valueOf(value));
+        this.world.send(updateQuest, user);
+    }
+
+//   public int getQuestValue(User user, int index) {
+//      return index > 99?Quests.lookAtValue((String)user.properties.get("quests2"), index - 100):Quests.lookAtValue((String)user.properties.get("quests1"), index);
+//   }
+
+    public int getQuestValue(User user, int index) {
+        if (index > 99) {
+            return Quests.lookAtValue((String) user.properties.get(Users.QUESTS_2), index - 100);
+        } else {
+            return Quests.lookAtValue((String) user.properties.get(Users.QUESTS_1), index);
+        }
+    }
 
    public void setAchievement(String field, int index, int value, User user) {
       if(field.equals("ia0")) {
@@ -1489,7 +1579,7 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
    }
 
    public int getAchievement(String field, int index, User user) {
-      return field.equals("ia0")?Achievement.get(((Integer)user.properties.get("ia0")).intValue(), index):(field.equals("id0")?Achievement.get(((Integer)user.properties.get("dailyquests0")).intValue(), index):(field.equals("id1")?Achievement.get(((Integer)user.properties.get("dailyquests1")).intValue(), index):(field.equals("id2")?Achievement.get(((Integer)user.properties.get("dailyquests2")).intValue(), index):(field.equals("im0")?Achievement.get(((Integer)user.properties.get("monthlyquests0")).intValue(), index):-1))));
+      return field.equals("ia0") ? Achievement.get(((Integer)user.properties.get("ia0")).intValue(), index):(field.equals("id0")?Achievement.get(((Integer)user.properties.get("dailyquests0")).intValue(), index):(field.equals("id1")?Achievement.get(((Integer)user.properties.get("dailyquests1")).intValue(), index):(field.equals("id2")?Achievement.get(((Integer)user.properties.get("dailyquests2")).intValue(), index):(field.equals("im0")?Achievement.get(((Integer)user.properties.get("monthlyquests0")).intValue(), index):-1))));
    }
 
    public String getGuildRank(int rank) {
@@ -1544,7 +1634,8 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
       return this.turnInItems(user, items);
    }
 
-   public boolean turnInItems(User user, Map<Integer, Integer> items) {
+   public boolean turnInItems(User user, Map<Integer, Integer> items)
+   {
       boolean valid = true;
       StringBuilder sItems = new StringBuilder();
       this.world.db.jdbc.beginTransaction();
@@ -1553,80 +1644,74 @@ private static final BeanCreator<ConcurrentHashMap> userProperties = new BeanCre
          Iterator ti = items.entrySet().iterator();
 
          while(ti.hasNext()) {
-            Entry entry = (Entry)ti.next();
-            int itemId = ((Integer)entry.getKey()).intValue();
-            int quantityRequirement = ((Integer)entry.getValue()).intValue();
-            Item item = (Item)this.world.items.get(Integer.valueOf(itemId));
-            if(item.isTemporary()) {
-               Map itemResult = (Map)user.properties.get("tempinventory");
-               if(!itemResult.containsKey(Integer.valueOf(itemId))) {
+            Entry entry = (Entry) ti.next();
+            int itemId = ((Integer) entry.getKey()).intValue();
+            int quantityRequirement = ((Integer) entry.getValue()).intValue();
+            Item item = (Item) this.world.items.get(Integer.valueOf(itemId));
+
+            if (item.isTemporary()) {
+//               Map itemResult = (Map) user.properties.get("tempinventory");
+               Map itemResult = (Map) user.properties.get(Users.TEMPORARY_INVENTORY);
+
+                if (!itemResult.containsKey(Integer.valueOf(itemId))) {
                   valid = false;
                   this.log(user, "Suspicous TurnIn", "Turning in a temporary item not found in temp. inventory.");
                   this.world.db.jdbc.rollbackTransaction();
                   break;
                }
-
-               if(((Integer)itemResult.get(Integer.valueOf(itemId))).intValue() < quantityRequirement) {
+               if (((Integer)itemResult.get(Integer.valueOf(itemId))).intValue() < quantityRequirement) {
                   valid = false;
                   this.log(user, "Suspicous TurnIn", "Quantity requirement for turning in item is lacking.");
                   this.world.db.jdbc.rollbackTransaction();
                   break;
                }
-
                itemResult.remove(Integer.valueOf(itemId));
                valid = true;
             } else {
-               QueryResult itemResult1 = this.world.db.jdbc.query("SELECT Quantity FROM users_items WHERE ItemID = ? AND UserID = ? FOR UPDATE", new Object[]{Integer.valueOf(itemId), user.properties.get("dbId")});
-               if(!itemResult1.next()) {
+                QueryResult itemResult1 = this.world.db.jdbc.query("SELECT Quantity FROM users_items WHERE ItemID = ? AND UserID = ? FOR UPDATE", new Object[]{Integer.valueOf(itemId), user.properties.get(Users.DATABASE_ID)});
+                if (!itemResult1.next()) {
                   valid = false;
                   itemResult1.close();
                   this.world.users.log(user, "Suspicous TurnIn", "Item to turn in not found in database.");
                   this.world.db.jdbc.rollbackTransaction();
                   break;
                }
-
                int quantity = itemResult1.getInt("Quantity");
                itemResult1.close();
-               if(item.getStack() > 1) {
+               if (item.getStack() > 1) {
                   int quantityLeft = quantity - quantityRequirement;
-                  if(quantityLeft > 0) {
-                     this.world.db.jdbc.run("UPDATE users_items SET Quantity = ? WHERE ItemID = ? AND UserID = ?", new Object[]{Integer.valueOf(quantityLeft), Integer.valueOf(itemId), user.properties.get("dbId")});
+                  if (quantityLeft > 0) {
+                    this.world.db.jdbc.run("UPDATE users_items SET Quantity = ? WHERE ItemID = ? AND UserID = ?", new Object[]{Integer.valueOf(quantityLeft), Integer.valueOf(itemId), user.properties.get(Users.DATABASE_ID)});
                   } else {
-                     this.world.db.jdbc.run("DELETE FROM users_items WHERE ItemID = ? AND UserID = ?", new Object[]{Integer.valueOf(itemId), user.properties.get("dbId")});
+                    this.world.db.jdbc.run("DELETE FROM users_items WHERE ItemID = ? AND UserID = ?", new Object[]{Integer.valueOf(itemId), user.properties.get("dbId")});
                   }
                } else {
                   this.world.db.jdbc.run("DELETE FROM users_items WHERE ItemID = ? AND UserID = ?", new Object[]{Integer.valueOf(itemId), user.properties.get("dbId")});
                }
-
                valid = true;
                itemResult1.close();
             }
-
             sItems.append(itemId);
             sItems.append(":");
             sItems.append(quantityRequirement);
             sItems.append(",");
          }
       } catch (JdbcException var16) {
-         if(this.world.db.jdbc.isInTransaction()) {
+         if (this.world.db.jdbc.isInTransaction()) {
             this.world.db.jdbc.rollbackTransaction();
          }
-
          SmartFoxServer.log.severe("Error in turn in transaction: " + var16.getMessage());
       } finally {
-         if(this.world.db.jdbc.isInTransaction()) {
+         if (this.world.db.jdbc.isInTransaction()) {
             this.world.db.jdbc.commitTransaction();
          }
-
       }
-
-      if(valid && !items.isEmpty()) {
+      if (valid && !items.isEmpty()) {
          JSONObject ti1 = new JSONObject();
          ti1.put("cmd", "turnIn");
          ti1.put("sItems", sItems.toString().substring(0, sItems.toString().length() - 1));
          this.world.send(ti1, user);
       }
-
       return valid;
    }
 

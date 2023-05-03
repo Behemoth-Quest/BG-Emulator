@@ -5,6 +5,8 @@ import world.behemoth.db.objects.Enhancement;
 import world.behemoth.db.objects.Item;
 import world.behemoth.dispatcher.IRequest;
 import world.behemoth.dispatcher.RequestException;
+import world.behemoth.requests.trade.TradeCancel;
+import world.behemoth.world.Users;
 import world.behemoth.world.World;
 import it.gotoandplay.smartfoxserver.SmartFoxServer;
 import it.gotoandplay.smartfoxserver.data.Room;
@@ -21,7 +23,7 @@ public class TradeFromInventory implements IRequest {
    }
 
    public void process(String[] params, User user, World world, Room room) throws RequestException {
-      int userDbId = ((Integer)user.properties.get("dbId")).intValue();
+      int userDbId = ((Integer)user.properties.get(Users.DATABASE_ID)).intValue();
       int itemId = Integer.parseInt(params[0]);
       int charItemId = Integer.parseInt(params[1]);
       int quantity = Integer.parseInt(params[3]);
@@ -36,10 +38,10 @@ public class TradeFromInventory implements IRequest {
       } else if(item == null) {
          (new TradeCancel()).process(new String[]{Integer.toString(client.getUserId())}, user, world, room);
          throw new RequestException("Item could not be found.");
-      } else if(client.getUserId() != ((Integer)user.properties.get("tradetgt")).intValue()) {
+      } else if(client.getUserId() != ((Integer)user.properties.get(Users.TRADE_TARGET)).intValue()) {
          (new TradeCancel()).process(new String[]{Integer.toString(-1)}, user, world, room);
          throw new RequestException(client.getName() + " has canceled the trade.");
-      } else if(user.getUserId() != ((Integer)client.properties.get("tradetgt")).intValue()) {
+      } else if(user.getUserId() != ((Integer)client.properties.get(Users.TRADE_TARGET)).intValue()) {
          (new TradeCancel()).process(new String[]{Integer.toString(-1)}, user, world, room);
          throw new RequestException(client.getName() + " has canceled the trade.");
       } else if(item.isTemporary()) {
@@ -47,12 +49,18 @@ public class TradeFromInventory implements IRequest {
          throw new RequestException("You\'re not able to trade temporary items!");
       } else if(quantity <= 0) {
          (new TradeCancel()).process(new String[]{Integer.toString(user.getUserId())}, client, world, world.zone.getRoom(client.getRoom()));
-         SmartFoxServer.log.warning("Attempting to put negative item quantity amount: " + user.properties.get("username"));
-         world.users.log(user, "Packet Edit [TradeFromInventory]", "Doing quantity black majiks");
+         SmartFoxServer.log.warning("Attempting to put negative item quantity amount: " + user.properties.get(Users.USERNAME));
+         world.users.log(user, "Packet Edit [TradeFromInventory]", "Doing quantity black majiks", (world.areas.get(room.getName().split("-")[0])).getId());
          world.users.kick(user);
+      } else if (!item.isMarketable()) {
+         JSONObject tr = new JSONObject();
+         tr.put("cmd", "tradeFromInv");
+         tr.put("bitSuccess", 0);
+         tr.put("msg", item.getName() + " is a non-tradable item!");
+         world.send(tr, user);
       } else {
          if(item.getFactionId() > 1) {
-            Map je = (Map)client.properties.get("factions");
+            Map je = (Map)client.properties.get(Users.FACTIONS);
             JSONObject offers;
             if(!je.containsKey(Integer.valueOf(item.getFactionId()))) {
                offers = new JSONObject();
@@ -72,17 +80,17 @@ public class TradeFromInventory implements IRequest {
             }
          }
 
-         world.db.jdbc.beginTransaction();
+         world.db.getJdbc().beginTransaction();
 
          try {
-            QueryResult je1 = world.db.jdbc.query("SELECT * FROM users_items WHERE id = ? FOR UPDATE", new Object[]{Integer.valueOf(charItemId)});
+            QueryResult je1 = world.db.getJdbc().query("SELECT * FROM users_items WHERE id = ? FOR UPDATE", new Object[]{Integer.valueOf(charItemId)});
             if(je1.next() && userDbId == je1.getInt("UserID") && itemId == je1.getInt("ItemID")) {
                if(item.getEquipment().equals("ar")) {
                   quantity = je1.getInt("Quantity");
                }
 
                world.users.addOfferItem(user, itemId, quantity, je1.getInt("EnhID"));
-               Map offers1 = (Map)user.properties.get("offer");
+               Map offers1 = (Map)user.properties.get(Users.TRADE_OFFERS);
                JSONObject tfi;
                if(je1.getInt("Quantity") < ((Integer)offers1.get(Integer.valueOf(itemId))).intValue()) {
                   tfi = new JSONObject();
@@ -114,11 +122,11 @@ public class TradeFromInventory implements IRequest {
                   lb.put("itemsB", items);
                   lb.put("bitSuccess", Integer.valueOf(1));
                   world.send(lb, client);
-                  if(((Boolean)user.properties.get("tradelock")).booleanValue() || ((Boolean)client.properties.get("tradelock")).booleanValue()) {
-                     user.properties.put("tradelock", Boolean.valueOf(false));
-                     user.properties.put("tradedeal", Boolean.valueOf(false));
-                     client.properties.put("tradelock", Boolean.valueOf(false));
-                     client.properties.put("tradedeal", Boolean.valueOf(false));
+                  if(((Boolean)user.properties.get(Users.TRADE_LOCK)).booleanValue() || ((Boolean)client.properties.get(Users.TRADE_LOCK)).booleanValue()) {
+                     user.properties.put(Users.TRADE_LOCK, Boolean.valueOf(false));
+                     user.properties.put(Users.TRADE_DEAL, Boolean.valueOf(false));
+                     client.properties.put(Users.TRADE_LOCK, Boolean.valueOf(false));
+                     client.properties.put(Users.TRADE_DEAL, Boolean.valueOf(false));
                      JSONObject tr = new JSONObject();
                      tr.put("cmd", "tradeUnlock");
                      tr.put("bitSuccess", Integer.valueOf(1));
@@ -130,14 +138,14 @@ public class TradeFromInventory implements IRequest {
 
             je1.close();
          } catch (JdbcException var23) {
-            if(world.db.jdbc.isInTransaction()) {
-               world.db.jdbc.rollbackTransaction();
+            if(world.db.getJdbc().isInTransaction()) {
+               world.db.getJdbc().rollbackTransaction();
             }
 
             SmartFoxServer.log.severe("Error in trade from inventory transaction: " + var23.getMessage());
          } finally {
-            if(world.db.jdbc.isInTransaction()) {
-               world.db.jdbc.commitTransaction();
+            if(world.db.getJdbc().isInTransaction()) {
+               world.db.getJdbc().commitTransaction();
             }
 
          }

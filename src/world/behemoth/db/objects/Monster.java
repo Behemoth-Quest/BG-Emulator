@@ -18,7 +18,7 @@ public class Monster {
    private int health;
    private int mana;
    private int level;
-   private int gold;
+   private int gold, coins;
    private int experience;
    private int reputation;
    private int DPS;
@@ -72,6 +72,7 @@ public class Monster {
        monster.mana = rs.getInt("Mana");
        monster.level = rs.getInt("Level");
        monster.gold = rs.getInt("Gold");
+         monster.coins = rs.getInt("Coins");
        monster.experience = rs.getInt("Experience");
        monster.reputation = rs.getInt("Reputation");
        monster.DPS = rs.getInt("DPS");
@@ -136,6 +137,10 @@ public class Monster {
    public int getGold() {
       return this.gold;
    }
+
+    public int getCoins() {
+        return this.coins;
+    }
 
    public int getExperience() {
       return this.experience;
